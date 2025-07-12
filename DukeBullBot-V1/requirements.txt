@@ -1,6 +1,0 @@
-python-telegram-bot==20.8
-solana==0.32.0
-solders==0.20.0
-python-dotenv
-requests
-base58
