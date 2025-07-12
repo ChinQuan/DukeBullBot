@@ -3,5 +3,4 @@ python-dotenv
 requests
 solana==0.32.0
 solders==0.20.0
-spl-token
 base58
