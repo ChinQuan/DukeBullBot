@@ -1,7 +1,7 @@
 # handlers/price.py
-import os
 import logging
 import asyncio
+import os
 from datetime import timedelta
 
 import aiohttp
@@ -9,102 +9,118 @@ from telegram import Update
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-from handlers.start import get_main_menu, alerts  # ← istniejące słowniki/menu
+from handlers.start import get_main_menu, alerts  # twoje menu i słownik alertów
 
 logger = logging.getLogger(__name__)
 
-# === Konfiguracja z ENV ======================================================
-BULL_TOKEN_ADDRESS = os.getenv("BULL_TOKEN_ADDRESS", "").strip()
-if not BULL_TOKEN_ADDRESS:
-    raise RuntimeError("Brak zmiennej BULL_TOKEN_ADDRESS w środowisku!")
+# === Konfiguracja ============================================================
+# Adres kontraktu / pair address w DexScreener (zmień, jeśli masz inny):
+PAIR_ADDRESS = os.getenv(
+    "DEX_PAIR_ADDRESS",
+    "gae6rs1n2xz5yywppf2pepub1krzpqh8sw43dzmnge7n",  # $BULL Raydium
+).strip()
 
-DEX_PAIR_URL = (
-    f"https://api.dexscreener.com/latest/dex/pairs/solana/{BULL_TOKEN_ADDRESS}"
+DEX_API_URL = (
+    f"https://api.dexscreener.com/latest/dex/pairs/solana/{PAIR_ADDRESS}"
 )
-BIRDEYE_API = f"https://public-api.birdeye.so/public/token/{BULL_TOKEN_ADDRESS}"
-DEX_LINK = f"https://dexscreener.com/solana/{BULL_TOKEN_ADDRESS}"
-BIRDEYE_LINK = f"https://birdeye.so/token/{BULL_TOKEN_ADDRESS}?chain=solana"
-
-BIRDEYE_API_KEY = os.getenv("BIRDEYE_API_KEY", "demo")  # demo → 10 req/min
+DEX_LINK = f"https://dexscreener.com/solana/{PAIR_ADDRESS}"
 # ============================================================================
 
 
-# ---------- funkcje pomocnicze ----------------------------------------------
-async def _fetch_json(session: aiohttp.ClientSession, url: str, **kwargs):
+# ---------- helpers ----------------------------------------------------------
+async def _fetch_json(session: aiohttp.ClientSession, url: str):
     try:
-        async with session.get(url, timeout=10, **kwargs) as resp:
+        async with session.get(url, timeout=10) as resp:
             resp.raise_for_status()
             return await resp.json()
     except Exception as exc:
-        logger.exception("Błąd przy pobieraniu %s: %s", url, exc)
+        logger.exception("DexScreener request failed: %s", exc)
         return None
 
 
-def _format_number(value: float, prec: int = 2) -> str:
-    """Formatuje liczby 12_300 → 12.3K itp."""
-    if value >= 1_000_000_000:
-        return f"{value/1_000_000_000:.{prec}f}B"
-    if value >= 1_000_000:
-        return f"{value/1_000_000:.{prec}f}M"
-    if value >= 1_000:
-        return f"{value/1_000:.{prec}f}K"
-    return f"{value:.{prec}f}"
+def _human_n(num: float, prec: int = 2) -> str:
+    if num >= 1_000_000_000:
+        return f"{num/1_000_000_000:.{prec}f}B"
+    if num >= 1_000_000:
+        return f"{num/1_000_000:.{prec}f}M"
+    if num >= 1_000:
+        return f"{num/1_000:.{prec}f}K"
+    return f"{num:.{prec}f}"
 
 
 def _age_to_human(seconds: int) -> str:
     td = timedelta(seconds=seconds)
-    days = td.days
-    weeks, days = divmod(days, 7)
-    parts = []
+    weeks, days = divmod(td.days, 7)
+    out = []
     if weeks:
-        parts.append(f"{weeks}w")
+        out.append(f"{weeks}w")
     if days:
-        parts.append(f"{days}d")
-    return " ".join(parts) or "—"
+        out.append(f"{days}d")
+    return " ".join(out) or "—"
 # -----------------------------------------------------------------------------
 
-
 async def check_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
-    """Główny handler wywoływany przy /price lub przycisku 'Price'."""
-    async with aiohttp.ClientSession(
-        headers={"x-api-key": BIRDEYE_API_KEY}
-    ) as session:
-        # równolegle pobieramy oba API
-        dexscreener_task = asyncio.create_task(_fetch_json(session, DEX_PAIR_URL))
-        birdeye_task = asyncio.create_task(_fetch_json(session, BIRDEYE_API))
+    async with aiohttp.ClientSession() as session:
+        data = await _fetch_json(session, DEX_API_URL)
 
-        dexscreener_data = await dexscreener_task
-        birdeye_data = await birdeye_task
-
-    if not dexscreener_data:
+    if not data:
         await update.effective_message.reply_text(
             "⚠️ Nie udało się pobrać danych z DexScreener. Spróbuj ponownie później."
         )
         return
 
-    pair = dexscreener_data.get("pair", {})
-    price_usd = float(pair.get("priceUsd", 0))
+    pair = data.get("pair", {})
+    price = float(pair.get("priceUsd", 0))
     fdv = float(pair.get("fdv", 0))
-    liquidity_usd = float(pair.get("liquidity", {}).get("usd", 0))
-    volume_24h = float(pair.get("volume", {}).get("h24", 0))
+    liq = float(pair.get("liquidity", {}).get("usd", 0))
+    vol24 = float(pair.get("volume", {}).get("h24", 0))
     ath = float(pair.get("ath", {}).get("price", 0))
-    change_1h = float(pair.get("priceChange", {}).get("h1", 0))
-    age_seconds = int(pair.get("age", 0))
+    age = _age_to_human(int(pair.get("age", 0)))
+    chg1h = float(pair.get("priceChange", {}).get("h1", 0))
 
-    # z Birdeye (opcjonalnie)
-    holders = birdeye_data.get("data", {}).get("holders", "—") if birdeye_data else "—"
-    fresh_1d = birdeye_data.get("data", {}).get("freshWallets1d", "—") if birdeye_data else "—"
-    fresh_7d = birdeye_data.get("data", {}).get("freshWallets7d", "—") if birdeye_data else "—"
-
-    # ---------- budujemy wiadomość ------------------------------------------
     message = (
         f"🚀 *Duke Bull* [$BULL]\\n"
         f"🏦 Solana @ Raydium Cpmm\\n"
-        f"💲 *USD:* `${price_usd:.8f}`\\n"
-        f"💰 *FDV:* ${_format_number(fdv)} ↔ *ATH:* ${_format_number(ath)} *(now!)*\\n"
-        f"🔒 *Liq:* ${_format_number(liquidity_usd)} | *LP:* 0% ‼️\\n"
-        f"📊 *Vol:* ${_format_number(volume_24h)} • *Age:* {_age_to_human(age_seconds)}\\n"
-        f"📈 *1H:* {change_1h:.1f}%\\n"
-        f"🤝 *Holders:* {holders}\\n"
-        f"🌱 *Fresh 1D:* {fresh_1d}% • *7D:* {fresh_7d}%\\n
+        f"💲 *USD:* `${price:.8f}`\\n"
+        f"💰 *FDV:* ${_human_n(fdv)} ↔ *ATH:* ${_human_n(ath)} *(now!)*\\n"
+        f"🔒 *Liq:* ${_human_n(liq)}\\n"
+        f"📊 *Vol:* ${_human_n(vol24)} • *Age:* {age}\\n"
+        f"📈 *1H:* {chg1h:.1f}%\\n\\n"
+        f"[Chart]({DEX_LINK})"
+    )
+
+    await update.effective_message.reply_text(
+        message,
+        parse_mode=ParseMode.MARKDOWN_V2,
+        disable_web_page_preview=True,
+        reply_markup=get_main_menu(),
+    )
+
+    # ---------- alerty -------------------------------------------------------
+    user_id = update.effective_user.id
+    if (alert_price := alerts.get(user_id)) is not None and price <= alert_price:
+        await context.bot.send_message(
+            chat_id=user_id,
+            text=f"🔔 Cena spadła do ${price:.8f}",
+            parse_mode=ParseMode.MARKDOWN_V2,
+        )
+        del alerts[user_id]
+
+
+# aliasy komend ---------------------------------------------------------------
+async def info(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await check_price(update, context)
+
+
+async def set_alert(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    args = context.args
+    if len(args) != 1:
+        await update.message.reply_text("Użyj: /set_alert <cena>")
+        return
+    try:
+        price = float(args[0])
+        alerts[update.effective_user.id] = price
+        await update.message.reply_text(f"🔔 Alert ustawiony na ${price:.8f}")
+    except ValueError:
+        await update.message.reply_text("Podaj prawidłową liczbę")
 
