@@ -14,11 +14,7 @@ from handlers.start import get_main_menu, alerts  # twoje menu i słownik alert�
 logger = logging.getLogger(__name__)
 
 # === Konfiguracja ============================================================
-# Adres kontraktu / pair address w DexScreener (zmień, jeśli masz inny):
-PAIR_ADDRESS = os.getenv(
-    "DEX_PAIR_ADDRESS",
-    "gae6rs1n2xz5yywppf2pepub1krzpqh8sw43dzmnge7n",  # $BULL Raydium
-).strip()
+PAIR_ADDRESS = "gae6rs1n2xz5yywppf2pepub1krzpqh8sw43dzmnge7n"  # Twój adres pary
 
 DEX_API_URL = (
     f"https://api.dexscreener.com/latest/dex/pairs/solana/{PAIR_ADDRESS}"
@@ -79,13 +75,13 @@ async def check_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chg1h = float(pair.get("priceChange", {}).get("h1", 0))
 
     message = (
-        f"🚀 *Duke Bull* [$BULL]\\n"
-        f"🏦 Solana @ Raydium Cpmm\\n"
-        f"💲 *USD:* `${price:.8f}`\\n"
-        f"💰 *FDV:* ${_human_n(fdv)} ↔ *ATH:* ${_human_n(ath)} *(now!)*\\n"
-        f"🔒 *Liq:* ${_human_n(liq)}\\n"
-        f"📊 *Vol:* ${_human_n(vol24)} • *Age:* {age}\\n"
-        f"📈 *1H:* {chg1h:.1f}%\\n\\n"
+        f"🚀 *Duke Bull* [$BULL]\n"
+        f"🏦 Solana @ Raydium Cpmm\n"
+        f"💲 *USD:* `${price:.8f}`\n"
+        f"💰 *FDV:* ${_human_n(fdv)} ↔ *ATH:* ${_human_n(ath)} *(now!)*\n"
+        f"🔒 *Liq:* ${_human_n(liq)}\n"
+        f"📊 *Vol:* ${_human_n(vol24)} • *Age:* {age}\n"
+        f"📈 *1H:* {chg1h:.1f}%\n\n"
         f"[Chart]({DEX_LINK})"
     )
 
@@ -123,4 +119,3 @@ async def set_alert(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await update.message.reply_text(f"🔔 Alert ustawiony na ${price:.8f}")
     except ValueError:
         await update.message.reply_text("Podaj prawidłową liczbę")
-
