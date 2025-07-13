@@ -1,25 +1,26 @@
-# handlers/price.py
-import logging
-import asyncio
-from datetime import timedelta
-
-import aiohttp
 from telegram import Update, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
+import aiohttp
+import logging
+from datetime import timedelta
 
-# ==== Lokalna wersja menu i alertów (obejście circular import) ==============
 alerts = {}
 
 def get_main_menu():
-    return InlineKeyboardMarkup([])  # ← tu możesz dodać własne przyciski
-# ============================================================================
+    buttons = [
+        [InlineKeyboardButton("📈 Cena", callback_data='price')],
+        [InlineKeyboardButton("ℹ️ Info", callback_data='info')],
+        [InlineKeyboardButton("🎰 Spin", callback_data='spin')],
+        [InlineKeyboardButton("🎟️ Loteria", callback_data='lottery')],
+    ]
+    return InlineKeyboardMarkup(buttons)
+
+logger = logging.getLogger(__name__)
 
 PAIR_ADDRESS = "gae6rs1n2xz5yywppf2pepub1krzpqh8sw43dzmnge7n"
 DEX_API_URL = f"https://api.dexscreener.com/latest/dex/pairs/solana/{PAIR_ADDRESS}"
 DEX_LINK = f"https://dexscreener.com/solana/{PAIR_ADDRESS}"
-
-logger = logging.getLogger(__name__)
 
 async def _fetch_json(session: aiohttp.ClientSession, url: str):
     try:
@@ -69,19 +70,27 @@ async def check_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     chg1h = float(pair.get("priceChange", {}).get("h1", 0))
 
     message = (
-        f"🚀 *Duke Bull* [$BULL]\n"
-        f"🏦 Solana @ Raydium Cpmm\n"
-        f"💲 *USD:* `${price:.8f}`\n"
-        f"💰 *FDV:* ${_human_n(fdv)} ↔ *ATH:* ${_human_n(ath)} *(now!)*\n"
-        f"🔒 *Liq:* ${_human_n(liq)}\n"
-        f"📊 *Vol:* ${_human_n(vol24)} • *Age:* {age}\n"
-        f"📈 *1H:* {chg1h:.1f}%\n\n"
-        f"[Chart]({DEX_LINK})"
+        f"<b>Duke Bull [$BULL]</b>
+"
+        f"🏦 Solana @ Raydium Cpmm
+"
+        f"💲 <b>USD:</b> ${price:.8f}
+"
+        f"💰 <b>FDV:</b> ${_human_n(fdv)} — <b>ATH:</b> ${_human_n(ath)}
+"
+        f"🔒 <b>Liq:</b> ${_human_n(liq)}
+"
+        f"📊 <b>Vol:</b> ${_human_n(vol24)} • <b>Age:</b> {age}
+"
+        f"📈 <b>1H:</b> {chg1h:.1f}%
+
+"
+        f"<a href='{DEX_LINK}'>📉 Zobacz wykres</a>"
     )
 
     await update.effective_message.reply_text(
         message,
-        parse_mode=ParseMode.MARKDOWN_V2,
+        parse_mode=ParseMode.HTML,
         disable_web_page_preview=True,
         reply_markup=get_main_menu(),
     )
@@ -91,7 +100,7 @@ async def check_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
         await context.bot.send_message(
             chat_id=user_id,
             text=f"🔔 Cena spadła do ${price:.8f}",
-            parse_mode=ParseMode.MARKDOWN_V2,
+            parse_mode=ParseMode.HTML,
         )
         del alerts[user_id]
 
