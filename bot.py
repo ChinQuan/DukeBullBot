@@ -1,5 +1,6 @@
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
-from handlers import start, price, spin, lottery, wallet
+from handlers import start, price, spin, lottery
+import handlers.wallet as wallet
 import logging
 import threading
 import time
@@ -35,3 +36,4 @@ def main():
 
 if __name__ == '__main__':
     main()
+
