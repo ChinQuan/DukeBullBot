@@ -1,12 +1,14 @@
-from telegram import Update, InlineKeyboardMarkup
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 import aiohttp
 import logging
 from datetime import timedelta
 
+# Lokalny słownik alertów
 alerts = {}
 
+# Menu przycisków inline
 def get_main_menu():
     buttons = [
         [InlineKeyboardButton("📈 Cena", callback_data='price')],
@@ -18,10 +20,12 @@ def get_main_menu():
 
 logger = logging.getLogger(__name__)
 
+# Konfiguracja pary tokena (Raydium $BULL)
 PAIR_ADDRESS = "gae6rs1n2xz5yywppf2pepub1krzpqh8sw43dzmnge7n"
 DEX_API_URL = f"https://api.dexscreener.com/latest/dex/pairs/solana/{PAIR_ADDRESS}"
 DEX_LINK = f"https://dexscreener.com/solana/{PAIR_ADDRESS}"
 
+# Pobieranie danych z DexScreener
 async def _fetch_json(session: aiohttp.ClientSession, url: str):
     try:
         async with session.get(url, timeout=10) as resp:
@@ -31,6 +35,7 @@ async def _fetch_json(session: aiohttp.ClientSession, url: str):
         logger.exception("DexScreener request failed: %s", exc)
         return None
 
+# Formatowanie dużych liczb
 def _human_n(num: float, prec: int = 2) -> str:
     if num >= 1_000_000_000:
         return f"{num/1_000_000_000:.{prec}f}B"
@@ -40,6 +45,7 @@ def _human_n(num: float, prec: int = 2) -> str:
         return f"{num/1_000:.{prec}f}K"
     return f"{num:.{prec}f}"
 
+# Formatowanie wieku tokena
 def _age_to_human(seconds: int) -> str:
     td = timedelta(seconds=seconds)
     weeks, days = divmod(td.days, 7)
@@ -50,6 +56,7 @@ def _age_to_human(seconds: int) -> str:
         out.append(f"{days}d")
     return " ".join(out) or "—"
 
+# Główna funkcja wyświetlania ceny
 async def check_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     async with aiohttp.ClientSession() as session:
         data = await _fetch_json(session, DEX_API_URL)
@@ -69,24 +76,17 @@ async def check_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     age = _age_to_human(int(pair.get("age", 0)))
     chg1h = float(pair.get("priceChange", {}).get("h1", 0))
 
-    message = (
-        f"<b>Duke Bull [$BULL]</b>
-"
-        f"🏦 Solana @ Raydium Cpmm
-"
-        f"💲 <b>USD:</b> ${price:.8f}
-"
-        f"💰 <b>FDV:</b> ${_human_n(fdv)} — <b>ATH:</b> ${_human_n(ath)}
-"
-        f"🔒 <b>Liq:</b> ${_human_n(liq)}
-"
-        f"📊 <b>Vol:</b> ${_human_n(vol24)} • <b>Age:</b> {age}
-"
-        f"📈 <b>1H:</b> {chg1h:.1f}%
+    message = f"""
+<b>Duke Bull [$BULL]</b>
+🏦 Solana @ Raydium Cpmm
+💲 <b>USD:</b> ${price:.8f}
+💰 <b>FDV:</b> ${_human_n(fdv)} — <b>ATH:</b> ${_human_n(ath)}
+🔒 <b>Liq:</b> ${_human_n(liq)}
+📊 <b>Vol:</b> ${_human_n(vol24)} • <b>Age:</b> {age}
+📈 <b>1H:</b> {chg1h:.1f}%
 
-"
-        f"<a href='{DEX_LINK}'>📉 Zobacz wykres</a>"
-    )
+<a href='{DEX_LINK}'>📉 Zobacz wykres</a>
+"""
 
     await update.effective_message.reply_text(
         message,
@@ -104,9 +104,11 @@ async def check_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         del alerts[user_id]
 
+# Aliasy do komendy /info
 async def info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await check_price(update, context)
 
+# Obsługa komendy /set_alert
 async def set_alert(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args
     if len(args) != 1:
