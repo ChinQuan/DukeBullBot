@@ -1,27 +1,85 @@
+// backend/server.js
+// -----------------
+
+// Core & middleware
 const express = require("express");
-const { Connection, Keypair, PublicKey, clusterApiUrl, Transaction } = require("@solana/web3.js");
-const { getOrCreateAssociatedTokenAccount, transfer, TOKEN_PROGRAM_ID } = require("@solana/spl-token");
-require("dotenv").config();
+const cors = require("cors");
+const dotenv = require("dotenv");
+dotenv.config();
+
+// Solana / SPL-Token
+const {
+  Connection,
+  Keypair,
+  PublicKey,
+  Transaction,
+  clusterApiUrl,
+} = require("@solana/web3.js");
+const {
+  getOrCreateAssociatedTokenAccount,
+  transfer,
+  TOKEN_PROGRAM_ID,
+} = require("@solana/spl-token");
+
+// ─────────────────────────────────────────────
+// App setup
+// ─────────────────────────────────────────────
 const app = express();
-app.use(express.json());
+app.use(cors());            // ← CORS pozwala na wywołania z dowolnego originu
+app.use(express.json());    // body-parser dla JSON
 
+// ─────────────────────────────────────────────
+// Config
+// ─────────────────────────────────────────────
 const connection = new Connection("https://api.mainnet-beta.solana.com");
-const payer = Keypair.fromSecretKey(Uint8Array.from(process.env.PRIVATE_KEY.split(",").map(n => parseInt(n))));
-const BULL_MINT = new PublicKey(process.env.TOKEN_MINT);
 
+// PRIVATE_KEY w .env musi być 64-elementowym ciągiem liczb, np. 12,34,…
+const secretKeyArr = process.env.PRIVATE_KEY.split(",").map(n => parseInt(n));
+const payer        = Keypair.fromSecretKey(Uint8Array.from(secretKeyArr));
+
+const BULL_MINT = new PublicKey(process.env.TOKEN_MINT);
+const PAYOUT_AMOUNT = 5_000;        // ilość BULL do wypłaty
+
+// ─────────────────────────────────────────────
+// Endpoint: POST /payout
+// ─────────────────────────────────────────────
 app.post("/payout", async (req, res) => {
   try {
     const dest = new PublicKey(req.body.address);
-    const fromToken = await getOrCreateAssociatedTokenAccount(connection, payer, BULL_MINT, payer.publicKey);
-    const toToken = await getOrCreateAssociatedTokenAccount(connection, payer, BULL_MINT, dest);
-    const sig = await transfer(
-      connection, payer, fromToken.address, toToken.address, payer, 5000, [], TOKEN_PROGRAM_ID
+    if (!dest) throw new Error("No destination address");
+
+    // konta tokenowe
+    const fromToken = await getOrCreateAssociatedTokenAccount(
+      connection, payer, BULL_MINT, payer.publicKey
     );
-    res.json({ success: true, signature: sig });
+    const toToken = await getOrCreateAssociatedTokenAccount(
+      connection, payer, BULL_MINT, dest
+    );
+
+    // transfer SPL
+    const sig = await transfer(
+      connection,
+      payer,                      // fee payer + signer
+      fromToken.address,
+      toToken.address,
+      payer.publicKey,
+      PAYOUT_AMOUNT,
+      [],
+      TOKEN_PROGRAM_ID
+    );
+
+    console.log(`[PAYOUT] Sent ${PAYOUT_AMOUNT} BULL to ${dest.toBase58()} → ${sig}`);
+    return res.json({ success: true, signature: sig });
   } catch (e) {
-    console.error(e);
-    res.status(500).json({ success: false, error: e.toString() });
+    console.error("[PAYOUT ERROR]", e);
+    return res.status(500).json({ success: false, error: e.toString() });
   }
 });
 
-app.listen(3000, () => console.log("Backend running on port 3000"));
+// ─────────────────────────────────────────────
+// Start server
+// ─────────────────────────────────────────────
+const PORT = process.env.PORT || 3000;
+app.listen(PORT, () => {
+  console.log(`Backend running on port ${PORT}`);
+});
