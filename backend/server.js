@@ -1,23 +1,23 @@
 // backend/server.js
 // -----------------
 
-// Core & middleware
 const express = require("express");
 const cors = require("cors");
 const dotenv = require("dotenv");
 dotenv.config();
 
-// Solana / SPL-Token
 const {
   Connection,
   Keypair,
   PublicKey,
-  Transaction,
   clusterApiUrl,
+  sendAndConfirmTransaction,
+  Transaction,
 } = require("@solana/web3.js");
+
 const {
   getOrCreateAssociatedTokenAccount,
-  transfer,
+  createTransferInstruction,
   TOKEN_PROGRAM_ID,
 } = require("@solana/spl-token");
 
@@ -25,20 +25,19 @@ const {
 // App setup
 // ─────────────────────────────────────────────
 const app = express();
-app.use(cors());            // ← CORS pozwala na wywołania z dowolnego originu
-app.use(express.json());    // body-parser dla JSON
+app.use(cors());
+app.use(express.json());
 
 // ─────────────────────────────────────────────
 // Config
 // ─────────────────────────────────────────────
 const connection = new Connection("https://api.mainnet-beta.solana.com");
 
-// PRIVATE_KEY w .env musi być 64-elementowym ciągiem liczb, np. 12,34,…
 const secretKeyArr = process.env.PRIVATE_KEY.split(",").map(n => parseInt(n));
-const payer        = Keypair.fromSecretKey(Uint8Array.from(secretKeyArr));
+const payer = Keypair.fromSecretKey(Uint8Array.from(secretKeyArr));
 
 const BULL_MINT = new PublicKey(process.env.TOKEN_MINT);
-const PAYOUT_AMOUNT = 5_000;        // ilość BULL do wypłaty
+const PAYOUT_AMOUNT = 5000 * 10 ** 6; // zakładamy 6 miejsc po przecinku
 
 // ─────────────────────────────────────────────
 // Endpoint: POST /payout
@@ -48,7 +47,7 @@ app.post("/payout", async (req, res) => {
     const dest = new PublicKey(req.body.address);
     if (!dest) throw new Error("No destination address");
 
-    // konta tokenowe
+    // znajdź lub utwórz token accounty
     const fromToken = await getOrCreateAssociatedTokenAccount(
       connection, payer, BULL_MINT, payer.publicKey
     );
@@ -56,19 +55,21 @@ app.post("/payout", async (req, res) => {
       connection, payer, BULL_MINT, dest
     );
 
-    // transfer SPL
-    const sig = await transfer(
-      connection,
-      payer,                      // fee payer + signer
-      fromToken.address,
-      toToken.address,
-      payer.publicKey,
-      PAYOUT_AMOUNT,
-      [],
-      TOKEN_PROGRAM_ID
+    // buduj transakcję
+    const tx = new Transaction().add(
+      createTransferInstruction(
+        fromToken.address,
+        toToken.address,
+        payer.publicKey,
+        PAYOUT_AMOUNT,
+        [],
+        TOKEN_PROGRAM_ID
+      )
     );
 
-    console.log(`[PAYOUT] Sent ${PAYOUT_AMOUNT} BULL to ${dest.toBase58()} → ${sig}`);
+    const sig = await sendAndConfirmTransaction(connection, tx, [payer]);
+
+    console.log(`[PAYOUT] ✅ Sent 5000 BULL → ${dest.toBase58()} | ${sig}`);
     return res.json({ success: true, signature: sig });
   } catch (e) {
     console.error("[PAYOUT ERROR]", e);
@@ -83,3 +84,4 @@ const PORT = process.env.PORT || 3000;
 app.listen(PORT, () => {
   console.log(`Backend running on port ${PORT}`);
 });
+
