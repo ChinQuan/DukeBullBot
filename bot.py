@@ -1,4 +1,3 @@
-# bot.py
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 from handlers import start, price, spin, lottery
 from handlers.spin import spin_button
