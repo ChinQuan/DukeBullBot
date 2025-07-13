@@ -1,29 +1,26 @@
 # handlers/price.py
 import logging
 import asyncio
-import os
 from datetime import timedelta
 
 import aiohttp
-from telegram import Update
+from telegram import Update, InlineKeyboardMarkup
 from telegram.constants import ParseMode
 from telegram.ext import ContextTypes
 
-from handlers.start import get_main_menu, alerts  # twoje menu i słownik alertów
+# ==== Lokalna wersja menu i alertów (obejście circular import) ==============
+alerts = {}
+
+def get_main_menu():
+    return InlineKeyboardMarkup([])  # ← tu możesz dodać własne przyciski
+# ============================================================================
+
+PAIR_ADDRESS = "gae6rs1n2xz5yywppf2pepub1krzpqh8sw43dzmnge7n"
+DEX_API_URL = f"https://api.dexscreener.com/latest/dex/pairs/solana/{PAIR_ADDRESS}"
+DEX_LINK = f"https://dexscreener.com/solana/{PAIR_ADDRESS}"
 
 logger = logging.getLogger(__name__)
 
-# === Konfiguracja ============================================================
-PAIR_ADDRESS = "gae6rs1n2xz5yywppf2pepub1krzpqh8sw43dzmnge7n"  # Twój adres pary
-
-DEX_API_URL = (
-    f"https://api.dexscreener.com/latest/dex/pairs/solana/{PAIR_ADDRESS}"
-)
-DEX_LINK = f"https://dexscreener.com/solana/{PAIR_ADDRESS}"
-# ============================================================================
-
-
-# ---------- helpers ----------------------------------------------------------
 async def _fetch_json(session: aiohttp.ClientSession, url: str):
     try:
         async with session.get(url, timeout=10) as resp:
@@ -32,7 +29,6 @@ async def _fetch_json(session: aiohttp.ClientSession, url: str):
     except Exception as exc:
         logger.exception("DexScreener request failed: %s", exc)
         return None
-
 
 def _human_n(num: float, prec: int = 2) -> str:
     if num >= 1_000_000_000:
@@ -43,7 +39,6 @@ def _human_n(num: float, prec: int = 2) -> str:
         return f"{num/1_000:.{prec}f}K"
     return f"{num:.{prec}f}"
 
-
 def _age_to_human(seconds: int) -> str:
     td = timedelta(seconds=seconds)
     weeks, days = divmod(td.days, 7)
@@ -53,7 +48,6 @@ def _age_to_human(seconds: int) -> str:
     if days:
         out.append(f"{days}d")
     return " ".join(out) or "—"
-# -----------------------------------------------------------------------------
 
 async def check_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
     async with aiohttp.ClientSession() as session:
@@ -92,7 +86,6 @@ async def check_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
         reply_markup=get_main_menu(),
     )
 
-    # ---------- alerty -------------------------------------------------------
     user_id = update.effective_user.id
     if (alert_price := alerts.get(user_id)) is not None and price <= alert_price:
         await context.bot.send_message(
@@ -102,11 +95,8 @@ async def check_price(update: Update, context: ContextTypes.DEFAULT_TYPE):
         )
         del alerts[user_id]
 
-
-# aliasy komend ---------------------------------------------------------------
 async def info(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await check_price(update, context)
-
 
 async def set_alert(update: Update, context: ContextTypes.DEFAULT_TYPE):
     args = context.args
