@@ -1,7 +1,6 @@
 python-telegram-bot==20.2
 python-dotenv
 requests
-solana==0.32.0
 solders==0.20.0
 base58
 aiohttp>=3.9
