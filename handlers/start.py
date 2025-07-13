@@ -9,10 +9,9 @@ from handlers.lottery import check_lottery
 # Funkcja do komendy /start
 async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
     await update.message.reply_text(
-        "👋 Witaj w Duke Bull Bot!
-Użyj przycisków poniżej, aby rozpocząć.",
-        reply_markup=get_main_menu()
-    )
+    "👋 Witaj w Duke Bull Bot!\nUżyj przycisków poniżej, aby rozpocząć.",
+    reply_markup=get_main_menu()
+)
 
 # Funkcja do przycisku callback
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
