@@ -2,57 +2,53 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Spin to Win BULL</title>
 
-  <!-- Solana Web3 (global) -->
+  <!-- Solana Web3 (global IIFE) -->
   <script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.73.2/lib/index.iife.min.js"></script>
 
-  <!-- Solana SPL Token (global) -->
-  <script src="https://cdn.jsdelivr.net/npm/@solana/spl-token@0.3.5/lib/index.iife.min.js"></script>
-  <script>
-    // Udostępnij SPL Token jako zmienna globalna
+  <!-- SPL Token as ESM module and attached to window -->
+  <script type="module">
+    import * as splToken from "https://cdn.jsdelivr.net/npm/@solana/spl-token@latest/dist/index.browser.mjs";
     window.splToken = splToken;
   </script>
 
   <style>
     body {
       font-family: sans-serif;
-      background: #111;
+      background: #000;
       color: #000;
       margin: 0;
       padding: 0;
     }
-
-    .container {
-      background: #f2f2f2;
-      width: 320px;
-      margin: 60px auto;
-      padding: 20px;
-      border-radius: 10px;
-      box-shadow: 0 0 10px #000;
+    .game-container {
+      background: #f3f3f3;
+      padding: 2rem;
+      margin: 4rem auto;
+      max-width: 420px;
+      border-radius: 12px;
+      box-shadow: 0 0 10px rgba(0,0,0,0.2);
       text-align: center;
     }
-
-    input, button {
+    button {
+      padding: 10px 20px;
       margin: 10px;
-      padding: 10px;
-      width: 80%;
-      border-radius: 6px;
-      border: 1px solid #ccc;
+      cursor: pointer;
     }
   </style>
 </head>
 <body>
-  <div class="container">
+
+  <div class="game-container">
     <h2>Spin to Win BULL</h2>
-    <button id="connectButton">Connect Phantom</button>
-    <p id="walletAddress">Not connected</p>
-    <button id="depositButton">Deposit 30,000 BULL</button>
-    <button id="spinButton">SPIN (1,000 BULL)</button>
+    <button id="connect">Connect Phantom</button>
+    <div id="wallet-address"></div>
+    <button id="deposit">Deposit 30,000 BULL</button>
+    <button id="spin">SPIN (1,000 BULL)</button>
   </div>
 
-  <!-- Twój skrypt (musi być ostatni) -->
-  <script src="app.js"></script>
+  <!-- Load app.js after splToken is available -->
+  <script src="app.js" defer></script>
 </body>
 </html>
