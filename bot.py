@@ -1,6 +1,5 @@
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
-from handlers import start, price, spin, lottery
-from handlers.spin import spin_button
+from handlers import start, price, spin, lottery, wallet
 import logging
 import threading
 import time
@@ -10,10 +9,7 @@ from dotenv import load_dotenv
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
 
-logging.basicConfig(
-    format='%(asctime)s - %(name)s - %(levelname)s - %(message)s',
-    level=logging.INFO
-)
+logging.basicConfig(format='%(asctime)s - %(name)s - %(levelname)s - %(message)s', level=logging.INFO)
 logger = logging.getLogger(__name__)
 
 def main():
@@ -24,10 +20,13 @@ def main():
     application.add_handler(CommandHandler("price", price.check_price))
     application.add_handler(CommandHandler("set_wallet", start.set_wallet))
     application.add_handler(CommandHandler("add_to_lottery", lottery.add_to_lottery))
+    application.add_handler(CommandHandler("spin", spin.spin_game))
+    application.add_handler(CommandHandler("link", wallet.set_wallet))
+    application.add_handler(CommandHandler("balance", wallet.get_balance))
 
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, start.echo))
     application.add_handler(CallbackQueryHandler(start.button))
-    application.add_handler(CallbackQueryHandler(spin_button, pattern="^(double|take)$"))
+    application.add_handler(CallbackQueryHandler(spin.spin_button, pattern="^(double|take)$"))
 
     threading.Thread(target=lambda: time.sleep(60), daemon=True).start()
     application.run_polling(allowed_updates=None)
