@@ -1,3 +1,4 @@
+from dotenv import load_dotenv
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
 from handlers import start, price, spin, lottery
 import logging
