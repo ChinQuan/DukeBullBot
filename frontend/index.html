@@ -2,21 +2,34 @@
 <html lang="en">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Spin to Win BULL</title>
   <link rel="stylesheet" href="style.css" />
 </head>
 <body>
   <div class="container">
     <h1>Spin to Win BULL</h1>
+
     <button id="connect-button">Connect Phantom</button>
     <p id="wallet-address"></p>
-    <button id="deposit-button">Deposit 30,000 BULL</button>
-    <button id="spin-button">SPIN (1,000 BULL)</button>
+
+    <button id="deposit-button">Deposit 30 000 BULL</button>
+    <button id="spin-button">SPIN (1 000 BULL)</button>
+
     <p id="result"></p>
   </div>
+
+  <!-- Solana Web3 global build -->
   <script src="https://unpkg.com/@solana/web3.js@latest/lib/index.iife.js"></script>
-  <script src="https://unpkg.com/@solana/spl-token@latest"></script>
+
+  <!-- SPL-Token global build (IIFE) -->
+  <script src="https://unpkg.com/@solana/spl-token@0.3.5/lib/index.iife.js"></script>
+  <script>
+    /* udostępniamy moduł w globalnej zmiennej, aby app.js go widział */
+    const splToken = window.splToken;
+  </script>
+
+  <!-- Główna logika gry -->
   <script src="app.js"></script>
 </body>
 </html>
