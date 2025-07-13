@@ -1,6 +1,8 @@
-from handlers import price  # upewnij się, że import jest na górze
-
-...
+from telegram import Update
+from telegram.ext import ContextTypes
+from handlers import price
+from handlers.spin import spin_game
+from handlers.lottery import check_lottery
 
 async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
     query = update.callback_query
