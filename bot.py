@@ -1,10 +1,10 @@
-from dotenv import load_dotenv
 from telegram.ext import Application, CommandHandler, CallbackQueryHandler, MessageHandler, filters
-from handlers import start, price, spin, lottery
+from handlers import start, price, spin, lottery, wallet
 import logging
 import threading
 import time
 import os
+from dotenv import load_dotenv
 
 load_dotenv()
 TOKEN = os.getenv("TELEGRAM_BOT_TOKEN")
@@ -23,6 +23,12 @@ def main():
     application.add_handler(CommandHandler("add_to_lottery", lottery.add_to_lottery))
     application.add_handler(MessageHandler(filters.TEXT & ~filters.COMMAND, start.echo))
     application.add_handler(CallbackQueryHandler(start.button))
+
+    application.add_handler(CommandHandler("spin", spin.spin_game))
+    application.add_handler(CallbackQueryHandler(spin.spin_button, pattern="^(double|take)$"))
+
+    application.add_handler(CommandHandler("link", wallet.set_wallet))
+    application.add_handler(CommandHandler("balance", wallet.get_balance))
 
     threading.Thread(target=lambda: time.sleep(60), daemon=True).start()
     application.run_polling(allowed_updates=None)
