@@ -1,3 +1,61 @@
+# handlers/start.py
+from telegram import Update, InlineKeyboardButton, InlineKeyboardMarkup
+from telegram.ext import ContextTypes
+
+import handlers.price as price
+from handlers.spin import spin_game
+from handlers.lottery import check_lottery
+
+# === Funkcja menu głównego ==================================================
+
+def get_main_menu():
+    buttons = [
+        [InlineKeyboardButton("📈 Cena", callback_data="price")],
+        [InlineKeyboardButton("ℹ️ Info", callback_data="info")],
+        [InlineKeyboardButton("🎰 Spin", callback_data="spin")],
+        [InlineKeyboardButton("🎟️ Loteria", callback_data="lottery")],
+    ]
+    return InlineKeyboardMarkup(buttons)
+
+# === Handlery komend /start, /set_wallet, echo ==============================
+
+async def start(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.effective_message.reply_text(
+        """👋 Witaj w Duke Bull Bot!
+Użyj przycisków poniżej, aby rozpocząć.""",
+        reply_markup=get_main_menu(),
+    )
+
+async def set_wallet(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    args = context.args
+    if len(args) != 1 or not args[0].startswith("Bu"):
+        await update.message.reply_text("Podaj poprawny adres portfela Solana. Przykład: /set_wallet BuXXXX")
+        return
+    from handlers.wallet import wallets
+    wallets[update.effective_user.id] = args[0]
+    await update.message.reply_text(f"🔗 Portfel ustawiony: {args[0]}")
+
+async def echo(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.message.reply_text("❓ Nie rozumiem. Skorzystaj z menu poniżej.")
+
+# === Obsługa przycisków inline ==============================================
+
+async def button(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    query = update.callback_query
+    await query.answer()
+
+    if query.data == "price":
+        await price.check_price(update, context)
+    elif query.data == "info":
+        await price.info(update, context)
+    elif query.data == "spin":
+        await spin_game(update, context)
+    elif query.data == "lottery":
+        await check_lottery(update, context)
+
+
+# ---------------------------------------------------------------------------
+# Poniżej pozostaje wcześniej zapisany plik spin.py bez zmian
 # handlers/spin.py
 import random
 from telegram import Update, InlineKeyboardMarkup, InlineKeyboardButton
@@ -58,3 +116,16 @@ async def spin_button(update: Update, context: ContextTypes.DEFAULT_TYPE):
             del games[user_id]
             await query.edit_message_text("🖤 Pudło! Straciłeś wszystko 😢")
 
+# Dodajemy brakującą funkcję info do handlers/price.py
+# handlers/price.py
+from telegram import Update
+from telegram.ext import ContextTypes
+
+async def info(update: Update, context: ContextTypes.DEFAULT_TYPE):
+    await update.effective_message.reply_text(
+        "ℹ️ Token Duke Bull ($BULL) to projekt memecoin na Solanie.\n\n"
+        "💱 Cena i wykres: https://dexscreener.com/solana/gae6rs1n2xz5yywppf2pepub1krzpqh8sw43dzmnge7n\n"
+        "🌐 Strona: https://duke.bull\n"
+        "🔗 Twitter: https://twitter.com/duketoken\n"
+        "👥 Telegram: https://t.me/duketoken"
+    )
