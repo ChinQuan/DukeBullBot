@@ -1,6 +1,6 @@
 const BACKEND_URL = "https://your-backend-url.com"; // Replace after deploy
 const BULL_MINT = new solanaWeb3.PublicKey("BuLL65dUKeRgZ1TUo3g9F3SAgJmdwq23mcx7erb9QX9D");
-const TREASURY = new solanaWeb3.PublicKey("3UKEyGjUJadQqQaBwaiEtD5zNZEh7ZgCyDRnf6Ao2oEA");
+const TREASURY = new solanaWeb3.PublicKey("FqzXYLitBn9oSb5tr3ffzJA4muxg47jSuiyjGUBNUXNz");
 let provider = window.solana;
 let connection = new solanaWeb3.Connection("https://api.mainnet-beta.solana.com");
 let walletPublicKey = null;
