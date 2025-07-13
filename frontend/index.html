@@ -10,10 +10,6 @@
 
   <!-- Solana SPL Token (global IIFE) -->
   <script src="https://cdn.jsdelivr.net/npm/@solana/spl-token@0.3.5/lib/index.iife.min.js"></script>
-  <script>
-    // Upewnij się, że splToken jest widoczny globalnie
-    window.splToken = window.splToken;
-  </script>
 
   <style>
     body {
@@ -49,7 +45,63 @@
     <button id="spin">SPIN (1,000 BULL)</button>
   </div>
 
-  <!-- Load app.js after splToken is available -->
-  <script src="app.js" defer></script>
+  <!-- MAIN SCRIPT -->
+  <script type="module">
+    const { Connection, PublicKey, Transaction, SystemProgram, clusterApiUrl } = solanaWeb3;
+    const { getAssociatedTokenAddress, createTransferInstruction } = splToken;
+
+    const connectBtn = document.getElementById("connect");
+    const walletAddressDiv = document.getElementById("wallet-address");
+    const depositBtn = document.getElementById("deposit");
+
+    let provider = null;
+    let publicKey = null;
+
+    const BULL_MINT = new PublicKey("BuLL65dUKeRgZ1TUo3g9F3SAgJmdwq23mcx7erb9QX9D");
+    const BACKEND_WALLET = new PublicKey("3UKEyGjUJadQqQaBwaiEtD5zNZEh7ZgCyDRnf6Ao2oEA");
+
+    async function connectWallet() {
+      if ("solana" in window) {
+        provider = window.solana;
+        try {
+          const resp = await provider.connect();
+          publicKey = resp.publicKey;
+          walletAddressDiv.textContent = "Connected: " + publicKey.toString();
+        } catch (err) {
+          console.error("User rejected request", err);
+        }
+      } else {
+        alert("Phantom wallet not found!");
+      }
+    }
+
+    async function transferBULL() {
+      try {
+        const connection = new Connection(clusterApiUrl("mainnet-beta"), "confirmed");
+
+        const senderATA = await getAssociatedTokenAddress(BULL_MINT, publicKey);
+        const receiverATA = await getAssociatedTokenAddress(BULL_MINT, BACKEND_WALLET);
+
+        const tx = new Transaction().add(
+          createTransferInstruction(senderATA, receiverATA, publicKey, 30000 * 1e9)
+        );
+
+        const { blockhash } = await connection.getLatestBlockhash();
+        tx.recentBlockhash = blockhash;
+        tx.feePayer = publicKey;
+
+        const signedTx = await provider.signTransaction(tx);
+        const txId = await connection.sendRawTransaction(signedTx.serialize());
+        console.log("Transaction sent:", txId);
+        alert("Deposit sent! TX: " + txId);
+      } catch (err) {
+        console.error("Transfer failed", err);
+        alert("Error: " + err.message);
+      }
+    }
+
+    connectBtn.addEventListener("click", connectWallet);
+    depositBtn.addEventListener("click", transferBULL);
+  </script>
 </body>
 </html>
