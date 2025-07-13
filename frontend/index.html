@@ -5,13 +5,14 @@
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Spin to Win BULL</title>
 
-  <!-- Solana Web3 (global IIFE) -->
+  <!-- Solana Web3.js (global IIFE) -->
   <script src="https://cdn.jsdelivr.net/npm/@solana/web3.js@1.73.2/lib/index.iife.min.js"></script>
 
-  <!-- SPL Token as ESM module and attached to window -->
-  <script type="module">
-    import * as splToken from "https://cdn.jsdelivr.net/npm/@solana/spl-token@latest/dist/index.browser.mjs";
-    window.splToken = splToken;
+  <!-- Solana SPL Token (global IIFE) -->
+  <script src="https://cdn.jsdelivr.net/npm/@solana/spl-token@0.3.5/lib/index.iife.min.js"></script>
+  <script>
+    // Upewnij się, że splToken jest widoczny globalnie
+    window.splToken = window.splToken;
   </script>
 
   <style>
